@@ -27,6 +27,9 @@ class YoloV5Ros2(Node):
         self.declare_parameter("image_topic", "/camera/image_raw", ParameterDescriptor(
             name="image_topic", description=f"default: /camera/image_raw"))
 
+        self.declare_parameter("camera_info_topic","/camera/camera_info",ParameterDescriptor(
+            name="camera_info_topic", description=f"default: /camera/camera_info"))
+
         # 1.load model
         model = self.get_parameter('model').value
         device = self.get_parameter('device').value
@@ -42,10 +45,29 @@ class YoloV5Ros2(Node):
         self.image_sub = self.create_subscription(
             Image, image_topic, self.image_callback, 10)
 
+
+        camera_info_topic = self.get_parameter('camera_info_topic').value
+        self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic,self.camera_info_callback,1)
+
+        self.camera_info = {}
+
         # 4.convert cv2 (cvbridge)
         self.bridge = CvBridge()
+    
+    def camera_info_callback(self, msg:CameraInfo):
+        """
+        通过回调函数获取到相机的参数信息
+        """
+        self.camera_info['k'] = msg.k
+        self.camera_info['p'] = msg.p
+        self.camera_info['d'] = msg.d
+        self.camera_info['r'] = msg.r
+        self.camera_info['roi'] = msg.roi
+        
+        self.camera_info_sub.destroy()
 
-    def image_callback(self, msg):
+
+    def image_callback(self, msg:Image):
         self.get_logger().info("get a image~")
 
         # 5.detect pub result
@@ -87,6 +109,7 @@ class YoloV5Ros2(Node):
             self.result_msg.detections.append(detection2d)
         
         # if view or pub
+        detect_result.show()
         # draw image
         # if view show
         # if pub publish
