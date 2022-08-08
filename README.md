@@ -1,22 +1,33 @@
 # YoloV5_ROS2
 
-基于YoloV5的ROS2封装，给定模型和相机参数可以直接发布三维空间置进行抓取操作。
+基于YoloV5的ROS2封装，给定模型文件和相机参数可以直接发布三维空间置进行抓取操作。
+![](https://img-blog.csdnimg.cn/592a90f1441f4a3ab4b94891878fbc55.png)
 
-## 安装
-
+## 1.安装依赖
 ```
 sudo apt update
-sudo apt install python3-pip
+sudo apt install python3-pip ros-humble-vision-msgs
 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5
 ```
-Ros2Pkgs
+## 2.编译运行
+```
+colcon build
+source install/setup.bash
+ros2 run yolov5_ros2 yolo_detect_2d --ros-args -p device:=cpu -p image_topic:=/image
+```
+
+使用真实相机，修改默认话题`image_topic:=/image`
 
 ```
-sudo apt install ros-humble-vision-msgs
+ros2 run image_tools  cam2image --ros-args -p width:=640 -p height:=480 -p frequency:=30.0 -p device_id:=-1
 ```
 
-## 编译运行
+![](https://img-blog.csdnimg.cn/c65bed0b67694ed69776151c203bb950.png)
 
+## 3.订阅结果
+识别结果通过/yolo_resutl话题发布出去，包含原始的像素坐标、和归一化后的x和y坐标（相机坐标系下）。
+
+```shell
+ros2 topic echo /yolo_result
 ```
-ros2 run yolov5_ros2 yolo_detect_2d -p device:=cpu
-```
+![](https://img-blog.csdnimg.cn/ac963f4226bf497790c0ef2fd8d942a3.png)
