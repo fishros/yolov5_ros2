@@ -10,6 +10,10 @@ from rcl_interfaces.msg import ParameterDescriptor
 from vision_msgs.msg import Detection2DArray, ObjectHypothesisWithPose, Detection2D
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
+import cv2
+import yaml
+
+from yolov5_ros2.cv_tool import px2xy
 
 package_share_directory = get_package_share_directory('yolov5_ros2')
 # package_share_directory = "/home/mouse/code/github/yolov5_test/src/yolov5_ros2"
@@ -31,8 +35,8 @@ class YoloV5Ros2(Node):
             name="camera_info_topic", description=f"default: /camera/camera_info"))
 
         # 默认从camera_info中读取参数,如果可以从话题接收到参数则覆盖文件中的参数
-        self.declare_parameter("camera_info", "", ParameterDescriptor(
-            name="camera_info", description=f"see:config/camera_info.yaml"))
+        self.declare_parameter("camera_info_file", f"{package_share_directory}/config/camera_info.yaml", ParameterDescriptor(
+            name="camera_info", description=f"{package_share_directory}/config/camera_info.yaml"))
 
         # 1.load model
         model = self.get_parameter('model').value
@@ -53,7 +57,10 @@ class YoloV5Ros2(Node):
         self.camera_info_sub = self.create_subscription(
             CameraInfo, camera_info_topic, self.camera_info_callback, 1)
 
-        self.camera_info = {}
+        # get camera info
+        with open(self.get_parameter('camera_info_file').value) as f:
+            self.camera_info = yaml.full_load(f.read())
+            print(self.camera_info['k'], self.camera_info['d'])
 
         # 4.convert cv2 (cvbridge)
         self.bridge = CvBridge()
@@ -71,19 +78,16 @@ class YoloV5Ros2(Node):
         self.camera_info_sub.destroy()
 
     def image_callback(self, msg: Image):
-        self.get_logger().info("get a image~")
 
         # 5.detect pub result
         image = self.bridge.imgmsg_to_cv2(msg)
         detect_result = self.yolov5.predict(image)
+        self.get_logger().info(str(detect_result))
 
         self.result_msg.detections.clear()
         self.result_msg.header.frame_id = "camera"
         self.result_msg.header.stamp = self.get_clock().now().to_msg()
 
-        print(detect_result, len(detect_result.pred))
-        # detect_result.show()
-        detect_result.save(save_dir='results/')
         # parse results
         predictions = detect_result.pred[0]
         boxes = predictions[:, :4]  # x1, y1, x2, y2
@@ -91,31 +95,43 @@ class YoloV5Ros2(Node):
         categories = predictions[:, 5]
 
         for index in range(len(categories)):
-            # print(detect_result.names[int(id)])
             name = detect_result.names[int(categories[index])]
             detection2d = Detection2D()
             detection2d.id = name
             # detection2d.bbox
             x1, y1, x2, y2 = boxes[index]
-            detection2d.bbox.center.position.x = float(x1+x2)/2.0
-            detection2d.bbox.center.position.y = float(y1+y2)/2.0
+            x1 = int(x1)
+            y1 = int(y1)
+            x2 = int(x2)
+            y2 = int(y2)
+            center_x = (x1+x2)/2.0
+            center_y = (y1+y2)/2.0
+            detection2d.bbox.center.position.x = center_x
+            detection2d.bbox.center.position.y = center_y
             detection2d.bbox.size_x = float(x2-x1)
             detection2d.bbox.size_y = float(y2-y1)
 
             obj_pose = ObjectHypothesisWithPose()
             obj_pose.hypothesis.class_id = name
             obj_pose.hypothesis.score = float(scores[index])
-            # obj_pose.pose.pose.position.x = 0.0
-            # obj_pose.pose.pose.position.y = 0.0
+
+            # px2xy
+            world_x, world_y = px2xy(
+                [center_x, center_y], self.camera_info["k"], self.camera_info["d"], 1)
+            obj_pose.pose.pose.position.x = world_x
+            obj_pose.pose.pose.position.y = world_y
             # obj_pose.pose.pose.position.z = 1.0  #2D相机则显示,归一化后的结果,用户用时自行乘上深度z获取正确xy
             detection2d.results.append(obj_pose)
             self.result_msg.detections.append(detection2d)
 
+            # draw
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(image, name, (x1, y1),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
         # if view or pub
-        detect_result.show()
-        # draw image
-        # if view show
-        # if pub publish
+        cv2.imshow('result', image)
+        cv2.waitKey(1)
 
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
@@ -125,32 +141,6 @@ def main():
     rclpy.init()
     rclpy.spin(YoloV5Ros2())
     rclpy.shutdown()
-    # set model params
-    # device = "cuda:0" # or "cpu"
-    # device = "cpu" # or "cpu"
-    # # init yolov5 model
-    # yolov5 = YOLOv5(model_path, device)
-    # # load images
-    # image2 = package_share_directory+"/resource/mouse.png"
-    # image1 = package_share_directory+"/resource/fish.jpg"
-    # # image2 = 'bus.jpg'
-    # # perform inference
-    # results = yolov5.predict(image1)
-    # # perform inference with larger input size
-    # results = yolov5.predict(image1, size=1280)
-    # # perform inference with test time augmentation
-    # results = yolov5.predict(image1, augment=True)
-    # # perform inference on multiple images
-    # results = yolov5.predict([image1, image2], size=1280, augment=True)
-    # # parse results
-    # predictions = results.pred[0]
-    # boxes = predictions[:, :4] # x1, y1, x2, y2
-    # scores = predictions[:, 4]
-    # categories = predictions[:, 5]
-    # # show detection bounding boxes on image
-    # results.show()
-    # # save results into "results/" folder
-    # results.save(save_dir='results/')
 
 
 if __name__ == "__main__":
