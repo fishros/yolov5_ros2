@@ -27,8 +27,12 @@ class YoloV5Ros2(Node):
         self.declare_parameter("image_topic", "/camera/image_raw", ParameterDescriptor(
             name="image_topic", description=f"default: /camera/image_raw"))
 
-        self.declare_parameter("camera_info_topic","/camera/camera_info",ParameterDescriptor(
+        self.declare_parameter("camera_info_topic", "/camera/camera_info", ParameterDescriptor(
             name="camera_info_topic", description=f"default: /camera/camera_info"))
+
+        # 默认从camera_info中读取参数,如果可以从话题接收到参数则覆盖文件中的参数
+        self.declare_parameter("camera_info", "", ParameterDescriptor(
+            name="camera_info", description=f"see:config/camera_info.yaml"))
 
         # 1.load model
         model = self.get_parameter('model').value
@@ -40,21 +44,21 @@ class YoloV5Ros2(Node):
             Detection2DArray, "yolo_result", 10)
         self.result_msg = Detection2DArray()
 
-        # 3.create sub image (if 3d, sub depth, if 2dpose,load camera info)
+        # 3.create sub image (if 3d, sub depth, if 2d load camera info)
         image_topic = self.get_parameter('image_topic').value
         self.image_sub = self.create_subscription(
             Image, image_topic, self.image_callback, 10)
 
-
         camera_info_topic = self.get_parameter('camera_info_topic').value
-        self.camera_info_sub = self.create_subscription(CameraInfo, camera_info_topic,self.camera_info_callback,1)
+        self.camera_info_sub = self.create_subscription(
+            CameraInfo, camera_info_topic, self.camera_info_callback, 1)
 
         self.camera_info = {}
 
         # 4.convert cv2 (cvbridge)
         self.bridge = CvBridge()
-    
-    def camera_info_callback(self, msg:CameraInfo):
+
+    def camera_info_callback(self, msg: CameraInfo):
         """
         通过回调函数获取到相机的参数信息
         """
@@ -63,11 +67,10 @@ class YoloV5Ros2(Node):
         self.camera_info['d'] = msg.d
         self.camera_info['r'] = msg.r
         self.camera_info['roi'] = msg.roi
-        
+
         self.camera_info_sub.destroy()
 
-
-    def image_callback(self, msg:Image):
+    def image_callback(self, msg: Image):
         self.get_logger().info("get a image~")
 
         # 5.detect pub result
@@ -98,7 +101,7 @@ class YoloV5Ros2(Node):
             detection2d.bbox.center.position.y = float(y1+y2)/2.0
             detection2d.bbox.size_x = float(x2-x1)
             detection2d.bbox.size_y = float(y2-y1)
-            
+
             obj_pose = ObjectHypothesisWithPose()
             obj_pose.hypothesis.class_id = name
             obj_pose.hypothesis.score = float(scores[index])
@@ -107,15 +110,16 @@ class YoloV5Ros2(Node):
             # obj_pose.pose.pose.position.z = 1.0  #2D相机则显示,归一化后的结果,用户用时自行乘上深度z获取正确xy
             detection2d.results.append(obj_pose)
             self.result_msg.detections.append(detection2d)
-        
+
         # if view or pub
         detect_result.show()
         # draw image
         # if view show
         # if pub publish
 
-        if len(categories)>0:
+        if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
+
 
 def main():
     rclpy.init()
