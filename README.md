@@ -31,3 +31,29 @@ ros2 run image_tools  cam2image --ros-args -p width:=640 -p height:=480 -p frequ
 ros2 topic echo /yolo_result
 ```
 ![](https://img-blog.csdnimg.cn/ac963f4226bf497790c0ef2fd8d942a3.png)
+
+
+## 4.更进一步使用
+
+### 4.1 参数设置
+
+#### 4.1.1 图像话题
+
+```
+image_topic:=/image
+```
+#### 4.1.2 计算设备设置
+
+可选的，如果你有cuda独显， cuda，cuda:0 
+
+```
+device:=cpu
+```
+#### 4.1.3 是否实时显示结果
+
+True显示，False不显示
+
+```
+show_result:=Flase
+```
+

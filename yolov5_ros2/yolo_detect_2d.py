@@ -38,6 +38,10 @@ class YoloV5Ros2(Node):
         self.declare_parameter("camera_info_file", f"{package_share_directory}/config/camera_info.yaml", ParameterDescriptor(
             name="camera_info", description=f"{package_share_directory}/config/camera_info.yaml"))
 
+        # 默认显示识别结果
+        self.declare_parameter("show_result", True, ParameterDescriptor(
+            name="show_result", description=f"default: True"))
+
         # 1.load model
         model = self.get_parameter('model').value
         device = self.get_parameter('device').value
@@ -64,6 +68,8 @@ class YoloV5Ros2(Node):
 
         # 4.convert cv2 (cvbridge)
         self.bridge = CvBridge()
+
+        self.show_result = self.get_parameter('show_result').value
 
     def camera_info_callback(self, msg: CameraInfo):
         """
@@ -125,13 +131,15 @@ class YoloV5Ros2(Node):
             self.result_msg.detections.append(detection2d)
 
             # draw
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(image, name, (x1, y1),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            if self.show_result:
+                cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(image, name, (x1, y1),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
         # if view or pub
-        cv2.imshow('result', image)
-        cv2.waitKey(1)
+        if self.show_result:
+            cv2.imshow('result', image)
+            cv2.waitKey(1)
 
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
