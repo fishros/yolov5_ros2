@@ -16,7 +16,9 @@ import yaml
 from yolov5_ros2.cv_tool import px2xy
 
 package_share_directory = get_package_share_directory('yolov5_ros2')
-# package_share_directory = "/home/mouse/code/github/yolov5_test/src/yolov5_ros2"
+# package_share_directory = "/home/mouse/code/github/yolov
+# 
+# 5_test/src/yolov5_ros2"
 
 
 class YoloV5Ros2(Node):
@@ -25,11 +27,12 @@ class YoloV5Ros2(Node):
         self.declare_parameter("device", "cuda", ParameterDescriptor(
             name="device", description="calculate_device default:cpu optional:cuda:0"))
 
-        self.declare_parameter("model", f"{package_share_directory}/config/yolov5s.pt", ParameterDescriptor(
-            name="model", description=f"default: {package_share_directory}/config/yolov5s.pt"))
+        self.declare_parameter("model", "yolov5s", ParameterDescriptor(
+            name="model", description="default: yolov5s"))
 
-        self.declare_parameter("image_topic", "/camera/image_raw", ParameterDescriptor(
-            name="image_topic", description=f"default: /camera/image_raw"))
+        self.declare_parameter("image_topic", "/image_raw", ParameterDescriptor(
+            name="image_topic", description=f"default: /image_raw"))
+        # /camera/image_raw
 
         self.declare_parameter("camera_info_topic", "/camera/camera_info", ParameterDescriptor(
             name="camera_info_topic", description=f"default: /camera/camera_info"))
@@ -39,13 +42,13 @@ class YoloV5Ros2(Node):
             name="camera_info", description=f"{package_share_directory}/config/camera_info.yaml"))
 
         # 默认显示识别结果
-        self.declare_parameter("show_result", True, ParameterDescriptor(
-            name="show_result", description=f"default: True"))
+        self.declare_parameter("show_result", False, ParameterDescriptor(
+            name="show_result", description=f"default: False"))
 
         # 1.load model
-        model = self.get_parameter('model').value
+        model_path = package_share_directory + "/config/" + self.get_parameter('model').value + ".pt"
         device = self.get_parameter('device').value
-        self.yolov5 = YOLOv5(model_path=model, device=device)
+        self.yolov5 = YOLOv5(model_path=model_path, device=device)
 
         # 2.create publisher
         self.yolo_result_pub = self.create_publisher(
@@ -112,6 +115,7 @@ class YoloV5Ros2(Node):
             y2 = int(y2)
             center_x = (x1+x2)/2.0
             center_y = (y1+y2)/2.0
+
             detection2d.bbox.center.position.x = center_x
             detection2d.bbox.center.position.y = center_y
             
@@ -120,7 +124,7 @@ class YoloV5Ros2(Node):
             # 参考http://docs.ros.org/en/api/vision_msgs/html/msg/BoundingBox2D.html 及 http://docs.ros.org/en/api/geometry_msgs/html/msg/Pose2D.html
             # detection2d.bbox.center.x = center_x
             # detection2d.bbox.center.y = center_y
-            
+
             detection2d.bbox.size_x = float(x2-x1)
             detection2d.bbox.size_y = float(y2-y1)
 
@@ -142,15 +146,17 @@ class YoloV5Ros2(Node):
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(image, name, (x1, y1),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv2.imshow('result', image)
+                cv2.waitKey(1)
 
         # if view or pub
         if self.show_result:
             cv2.imshow('result', image)
             cv2.waitKey(1)
 
+        print("before publish out if")
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
-
 
 def main():
     rclpy.init()
