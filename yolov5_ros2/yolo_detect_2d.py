@@ -116,14 +116,14 @@ class YoloV5Ros2(Node):
             center_x = (x1+x2)/2.0
             center_y = (y1+y2)/2.0
 
-            detection2d.bbox.center.position.x = center_x
-            detection2d.bbox.center.position.y = center_y
+            # detection2d.bbox.center.position.x = center_x
+            # detection2d.bbox.center.position.y = center_y
             
             # galactic使用如下center坐标，否则会报错：Pose2D object has no attribute position
             # 其它版本未验证
             # 参考http://docs.ros.org/en/api/vision_msgs/html/msg/BoundingBox2D.html 及 http://docs.ros.org/en/api/geometry_msgs/html/msg/Pose2D.html
-            # detection2d.bbox.center.x = center_x
-            # detection2d.bbox.center.y = center_y
+            detection2d.bbox.center.x = center_x
+            detection2d.bbox.center.y = center_y
 
             detection2d.bbox.size_x = float(x2-x1)
             detection2d.bbox.size_y = float(y2-y1)
