@@ -6,7 +6,7 @@
 ## 1.安装依赖
 ```
 sudo apt update
-sudo apt install python3-pip ros-humble-vision-msgs
+sudo apt install python3-pip ros-<ros2-distro>-vision-msgs # <ros2-distro>替换为humble，foxy或galactic等ros2发行版
 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5
 ```
 ## 2.编译运行
@@ -16,10 +16,16 @@ source install/setup.bash
 ros2 run yolov5_ros2 yolo_detect_2d --ros-args -p device:=cpu -p image_topic:=/image
 ```
 
-使用真实相机，修改默认话题`image_topic:=/image`
+使用真实相机，修改默认话题`image_topic:=/image`，并在另一个终端中运行如下命令
 
 ```
 ros2 run image_tools  cam2image --ros-args -p width:=640 -p height:=480 -p frequency:=30.0 -p device_id:=-1
+```
+
+也可使用其它相机，如`usb_cam`。参数`image_topic`修改为`image_topic:=/image_raw`
+```bash
+sudo apt-get install ros-<ros2-distro>-usb-cam # 安装
+ros2 run usb_cam usb_cam_node_exe
 ```
 
 ![](https://img-blog.csdnimg.cn/c65bed0b67694ed69776151c203bb950.png)
@@ -54,6 +60,6 @@ device:=cpu
 True显示，False不显示
 
 ```
-show_result:=Flase
+show_result:=False
 ```
-
+注：实时显示中`cv2.imshow`可能会卡住，如果只想验证结果，可将实时显示设置为`False`。
