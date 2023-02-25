@@ -63,3 +63,9 @@ True显示，False不显示
 show_result:=False
 ```
 注：实时显示中`cv2.imshow`可能会卡住，如果只想验证结果，可将实时显示设置为`False`。
+
+#### 4.1.4 切换不同Yolov5模型
+默认为`yolov5s`，可修改为`yolov5m`或`yolov5l`等
+```
+model:=yolov5m
+```
