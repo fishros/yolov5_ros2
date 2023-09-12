@@ -160,7 +160,6 @@ class YoloV5Ros2(Node):
             cv2.imshow('result', image)
             cv2.waitKey(1)
 
-        print("before publish out if")
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
 
