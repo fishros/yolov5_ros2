@@ -1,8 +1,10 @@
-# Yolo_ROS2
+[中文文档](./README.md) | [English Document](./README_EN.md)
 
-基于Yolo（V5/V7）的ROS2封装，允许用户使用给定的模型文件和相机参数进行三维空间物体检测和抓取操作。
+# YOLO_ROS2
 
-![Yolo_ROS2](https://img-blog.csdnimg.cn/592a90f1441f4a3ab4b94891878fbc55.png)
+基于YOLO（V5/V7）的ROS2封装，允许用户使用给定的模型文件和相机参数进行三维空间物体检测和抓取操作。
+
+![YOLO_ROS2](https://img-blog.csdnimg.cn/592a90f1441f4a3ab4b94891878fbc55.png)
 
 ## 1. 安装依赖
 
@@ -103,3 +105,11 @@ pub_result_img:=True
 ```
 
 这将允许您通过`/result_img`话题查看检测结果的图像。
+
+#### 4.1.5 相机参数文件
+
+功能包默认从 /camera/camera_info 话题获取相机参数，在获取成功前，相机参数文件路径可以通过参数进行设置，参数为：camera_info_file，通过该参数可以设置文件路径，注意需要使用绝对目录：
+
+```bash
+camera_info_file:=/home/fishros/chapt9/src/yolov5_ros2/config/camera_info.yaml
+```

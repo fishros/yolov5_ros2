@@ -6,73 +6,62 @@ import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 from rcl_interfaces.msg import ParameterDescriptor
-
 from vision_msgs.msg import Detection2DArray, ObjectHypothesisWithPose, Detection2D
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
 import yaml
-
 from yolov5_ros2.cv_tool import px2xy
 import os
 
-
-
-
+# Get the ROS distribution version and set the shared directory for YoloV5 configuration files.
 ros_distribution = os.environ.get("ROS_DISTRO")
 package_share_directory = get_package_share_directory('yolov5_ros2')
-# package_share_directory = "/home/mouse/code/github/yolov
-# 
-# 5_test/src/yolov5_ros2"
 
-
+# Create a ROS 2 Node class YoloV5Ros2.
 class YoloV5Ros2(Node):
     def __init__(self):
         super().__init__('yolov5_ros2')
-        self.get_logger().info(f"当前ROS 2版本为 {ros_distribution}")
+        self.get_logger().info(f"Current ROS 2 distribution: {ros_distribution}")
 
+        # Declare ROS parameters.
         self.declare_parameter("device", "cuda", ParameterDescriptor(
-            name="device", description="calculate_device default:cpu optional:cuda:0"))
+            name="device", description="Compute device selection, default: cpu, options: cuda:0"))
 
         self.declare_parameter("model", "yolov5s", ParameterDescriptor(
-            name="model", description="default: yolov5s"))
+            name="model", description="Default model selection: yolov5s"))
 
         self.declare_parameter("image_topic", "/image_raw", ParameterDescriptor(
-            name="image_topic", description=f"default: /image_raw"))
-        # /camera/image_raw
-
+            name="image_topic", description="Image topic, default: /image_raw"))
+        
         self.declare_parameter("camera_info_topic", "/camera/camera_info", ParameterDescriptor(
-            name="camera_info_topic", description=f"default: /camera/camera_info"))
+            name="camera_info_topic", description="Camera information topic, default: /camera/camera_info"))
 
-        # 默认从camera_info中读取参数,如果可以从话题接收到参数则覆盖文件中的参数
+        # Read parameters from the camera_info topic if available, otherwise, use the file-defined parameters.
         self.declare_parameter("camera_info_file", f"{package_share_directory}/config/camera_info.yaml", ParameterDescriptor(
-            name="camera_info", description=f"{package_share_directory}/config/camera_info.yaml"))
+            name="camera_info", description=f"Camera information file path, default: {package_share_directory}/config/camera_info.yaml"))
 
-        # 默认显示识别结果
+        # Default to displaying detection results.
         self.declare_parameter("show_result", False, ParameterDescriptor(
-            name="show_result", description=f"default: False"))
-        # 默认显示识别结果
+            name="show_result", description="Whether to display detection results, default: False"))
+
+        # Default to publishing detection result images.
         self.declare_parameter("pub_result_img", False, ParameterDescriptor(
-            name="pub_result_img", description=f"default: False"))
+            name="pub_result_img", description="Whether to publish detection result images, default: False"))
 
-
-
-
-
-        # 1.load model
+        # 1. Load the model.
         model_path = package_share_directory + "/config/" + self.get_parameter('model').value + ".pt"
         device = self.get_parameter('device').value
         self.yolov5 = YOLOv5(model_path=model_path, device=device)
 
-        # 2.create publisher
+        # 2. Create publishers.
         self.yolo_result_pub = self.create_publisher(
             Detection2DArray, "yolo_result", 10)
         self.result_msg = Detection2DArray()
 
         self.result_img_pub = self.create_publisher(Image, "result_img", 10)
 
-
-        # 3.create sub image (if 3d, sub depth, if 2d load camera info)
+        # 3. Create an image subscriber (subscribe to depth information for 3D cameras, load camera info for 2D cameras).
         image_topic = self.get_parameter('image_topic').value
         self.image_sub = self.create_subscription(
             Image, image_topic, self.image_callback, 10)
@@ -81,22 +70,20 @@ class YoloV5Ros2(Node):
         self.camera_info_sub = self.create_subscription(
             CameraInfo, camera_info_topic, self.camera_info_callback, 1)
 
-        # get camera info
+        # Get camera information.
         with open(self.get_parameter('camera_info_file').value) as f:
             self.camera_info = yaml.full_load(f.read())
-            print(self.camera_info['k'], self.camera_info['d'])
+            self.get_logger().info(f"default_camera_info: {self.camera_info['k']} \n {self.camera_info['d']}")
 
-        # 4.convert cv2 (cvbridge)
+        # 4. Image format conversion (using cv_bridge).
         self.bridge = CvBridge()
 
         self.show_result = self.get_parameter('show_result').value
         self.pub_result_img = self.get_parameter('pub_result_img').value
 
-
-
     def camera_info_callback(self, msg: CameraInfo):
         """
-        通过回调函数获取到相机的参数信息
+        Get camera parameters through a callback function.
         """
         self.camera_info['k'] = msg.k
         self.camera_info['p'] = msg.p
@@ -106,11 +93,8 @@ class YoloV5Ros2(Node):
 
         self.camera_info_sub.destroy()
 
-
-
     def image_callback(self, msg: Image):
-
-        # 5.detect pub result
+        # 5. Detect and publish results.
         image = self.bridge.imgmsg_to_cv2(msg)
         detect_result = self.yolov5.predict(image)
         self.get_logger().info(str(detect_result))
@@ -119,7 +103,7 @@ class YoloV5Ros2(Node):
         self.result_msg.header.frame_id = "camera"
         self.result_msg.header.stamp = self.get_clock().now().to_msg()
 
-        # parse results
+        # Parse the results.
         predictions = detect_result.pred[0]
         boxes = predictions[:, :4]  # x1, y1, x2, y2
         scores = predictions[:, 4]
@@ -129,7 +113,6 @@ class YoloV5Ros2(Node):
             name = detect_result.names[int(categories[index])]
             detection2d = Detection2D()
             detection2d.id = name
-            # detection2d.bbox
             x1, y1, x2, y2 = boxes[index]
             x1 = int(x1)
             y1 = int(y1)
@@ -145,7 +128,6 @@ class YoloV5Ros2(Node):
                 detection2d.bbox.center.position.x = center_x
                 detection2d.bbox.center.position.y = center_y
 
-
             detection2d.bbox.size_x = float(x2-x1)
             detection2d.bbox.size_y = float(y2-y1)
 
@@ -158,28 +140,26 @@ class YoloV5Ros2(Node):
                 [center_x, center_y], self.camera_info["k"], self.camera_info["d"], 1)
             obj_pose.pose.pose.position.x = world_x
             obj_pose.pose.pose.position.y = world_y
-            # obj_pose.pose.pose.position.z = 1.0  #2D相机则显示,归一化后的结果,用户用时自行乘上深度z获取正确xy
             detection2d.results.append(obj_pose)
             self.result_msg.detections.append(detection2d)
 
-            # draw
+            # Draw results.
             if self.show_result or self.pub_result_img:
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(image, f"{name}({world_x:.2f},{world_y:.2f})", (x1, y1),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.waitKey(1)
 
-        # if view or pub
+        # Display results if needed.
         if self.show_result:
             cv2.imshow('result', image)
             cv2.waitKey(1)
 
+        # Publish result images if needed.
         if self.pub_result_img:
-            # TODO：通过发布者发布画好的图像 image
             result_img_msg = self.bridge.cv2_to_imgmsg(image, encoding="bgr8")
             result_img_msg.header = msg.header
-            self.result_img_pub.publish(result_img_msg)  
-            
+            self.result_img_pub.publish(result_img_msg)
 
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
@@ -188,7 +168,6 @@ def main():
     rclpy.init()
     rclpy.spin(YoloV5Ros2())
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
