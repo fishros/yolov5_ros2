@@ -51,6 +51,13 @@ class YoloV5Ros2(Node):
         # 默认显示识别结果
         self.declare_parameter("show_result", False, ParameterDescriptor(
             name="show_result", description=f"default: False"))
+        # 默认显示识别结果
+        self.declare_parameter("pub_result_img", False, ParameterDescriptor(
+            name="pub_result_img", description=f"default: False"))
+
+
+
+
 
         # 1.load model
         model_path = package_share_directory + "/config/" + self.get_parameter('model').value + ".pt"
@@ -61,6 +68,9 @@ class YoloV5Ros2(Node):
         self.yolo_result_pub = self.create_publisher(
             Detection2DArray, "yolo_result", 10)
         self.result_msg = Detection2DArray()
+
+        self.result_img_pub = self.create_publisher(Image, "result_img", 10)
+
 
         # 3.create sub image (if 3d, sub depth, if 2d load camera info)
         image_topic = self.get_parameter('image_topic').value
@@ -80,6 +90,9 @@ class YoloV5Ros2(Node):
         self.bridge = CvBridge()
 
         self.show_result = self.get_parameter('show_result').value
+        self.pub_result_img = self.get_parameter('pub_result_img').value
+
+
 
     def camera_info_callback(self, msg: CameraInfo):
         """
@@ -92,6 +105,8 @@ class YoloV5Ros2(Node):
         self.camera_info['roi'] = msg.roi
 
         self.camera_info_sub.destroy()
+
+
 
     def image_callback(self, msg: Image):
 
@@ -148,17 +163,23 @@ class YoloV5Ros2(Node):
             self.result_msg.detections.append(detection2d)
 
             # draw
-            if self.show_result:
+            if self.show_result or self.pub_result_img:
                 cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(image, name, (x1, y1),
+                cv2.putText(image, f"{name}({world_x:.2f},{world_y:.2f})", (x1, y1),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-                cv2.imshow('result', image)
                 cv2.waitKey(1)
 
         # if view or pub
         if self.show_result:
             cv2.imshow('result', image)
             cv2.waitKey(1)
+
+        if self.pub_result_img:
+            # TODO：通过发布者发布画好的图像 image
+            result_img_msg = self.bridge.cv2_to_imgmsg(image, encoding="bgr8")
+            result_img_msg.header = msg.header
+            self.result_img_pub.publish(result_img_msg)  
+            
 
         if len(categories) > 0:
             self.yolo_result_pub.publish(self.result_msg)
