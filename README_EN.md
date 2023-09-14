@@ -2,7 +2,7 @@
 
 # YOLO_ROS2
 
-Based on YOLO (V5/V7), YOLO_ROS2 is a ROS2 wrapper that allows users to perform 3D spatial object detection and grasping operations using provided model files and camera parameters.
+Based on YOLOV5, YOLO_ROS2 is a ROS2 wrapper that allows users to perform 3D spatial object detection and grasping operations using provided model files and camera parameters.
 
 ![YOLO_ROS2](https://img-blog.csdnimg.cn/592a90f1441f4a3ab4b94891878fbc55.png)
 
@@ -13,7 +13,7 @@ First, make sure you have updated your system and installed the necessary depend
 ```bash
 sudo apt update
 sudo apt install python3-pip ros-$ROS_DISTRO-vision-msgs
-pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5  # It is recommended to use v5, but if you need to use v7, you can run pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov7
+pip3 install yolov5  
 ```
 
 ## 2. Compilation and Execution
