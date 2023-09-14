@@ -2,7 +2,7 @@
 
 # YOLO_ROS2
 
-基于YOLO（V5/V7）的ROS2封装，允许用户使用给定的模型文件和相机参数进行三维空间物体检测和抓取操作。
+基于YOLOV5 的ROS2封装，允许用户使用给定的模型文件和相机参数进行三维空间物体检测和抓取操作。
 
 ![YOLO_ROS2](https://img-blog.csdnimg.cn/592a90f1441f4a3ab4b94891878fbc55.png)
 
@@ -13,7 +13,7 @@
 ```bash
 sudo apt update
 sudo apt install python3-pip ros-$ROS_DISTRO-vision-msgs
-pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5  # 推荐使用v5，但如果需要使用v7，可以运行 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov7
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5  
 ```
 
 ## 2. 编译和运行
