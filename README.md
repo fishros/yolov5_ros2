@@ -16,11 +16,20 @@ sudo apt install python3-pip ros-$ROS_DISTRO-vision-msgs
 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple yolov5  
 ```
 
-## 2. 编译和运行
+## 2. 下载编译和运行
 
-编译项目并设置环境变量：
+下载开源库
 
 ```bash
+mkdir -p yolov5_ws/src
+cd yolov5_ws/src
+git clone https://github.com/fishros/yolov5_ros2.git
+```
+
+编译项目并设置环境变量
+
+```bash
+cd yolov5_ws
 colcon build
 source install/setup.bash
 ```
